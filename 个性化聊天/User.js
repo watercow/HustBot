@@ -18,7 +18,8 @@
         说：  yuange 或者 lubin 或者 其他未在 JSON 文件中存在的名字
 
     @ 2017-04-09 更新：
-        新增了询问用户是否要修改 ID 的功能
+        新增询问用户是否要修改 ID 的功能
+        新增自动匹配用户输入的 login 字符串从而进入"登录对话"的功能
 ------------------------------------------------------------------------------*/
 
 // create builder, connector and bot
@@ -26,14 +27,41 @@ var builder = require('botbuilder');
 var connector = new builder.ConsoleConnector().listen();
 var bot = new builder.UniversalBot(connector);
 
+// create intents
+var intents = new builder.IntentDialog();
+
 // write and read the .json file
 var UserInfo = require('./UserInfo.json');
 var fs = require("fs");
 
-// main dialog
-bot.dialog('/', [
+/* ----------------------- main dialog -----------------------
+ * Use intents to confirm what kind of service the user wants.
+ * ----------------------------------------------------------- */ 
+bot.dialog('/', intents);
+
+/* ------------------------- intents -------------------------
+ * Case /^login/i   : begin '/login' dialog
+ * Default          : say 'Hello!'
+ * ----------------------------------------------------------- */ 
+intents.matches(/^login/i, builder.DialogAction.beginDialog('/login'))
+    .onDefault(builder.DialogAction.send("Hello!"));
+
+/* ----------------------- login dialog -----------------------
+ * Step 1 : Ask the user's name
+ * Step 2 : Use '/userLogin' to judge if the user exists
+ * Step 3 : If exists :
+ *              Say hello and return
+ *          Else :
+ *              Use '/completeInfo' to ask user if he wants to
+ *              complete information or not
+ * Step 4 : If user wants to complete information :
+ *              Use '/completeID' to add more infomation
+ *          Else :
+ *              Add the user's name to .JSON file and return
+ * ----------------------------------------------------------- */ 
+bot.dialog('/login', [
     function (session) {
-        builder.Prompts.text(session, 'Who are you, my friend ?');
+        builder.Prompts.text(session, 'Now logining ... Who are you, my friend ?');
     },
     function (session, results) {
         session.userData.userName = results.response;

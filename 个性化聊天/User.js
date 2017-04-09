@@ -16,6 +16,9 @@
     使用方式：
         说：  hello
         说：  yuange 或者 lubin 或者 其他未在 JSON 文件中存在的名字
+
+    @ 2017-04-09 更新：
+        新增了询问用户是否要修改 ID 的功能
 ------------------------------------------------------------------------------*/
 
 // create builder, connector and bot
@@ -56,7 +59,10 @@ bot.dialog('/', [
     }
 ]);
 
-// userLogin dialog
+/* -------------- userLogin dialog --------------
+ * If the userName exists, return 'Exist'
+ * Else return 'NotExist'
+ * ---------------------------------------------- */
 bot.dialog('/userLogin', [
     function (session, args, next) {
         session.dialogData.userName = args;     // 'args' is 'result.response' passed by main dialog
@@ -74,15 +80,18 @@ bot.dialog('/userLogin', [
     }
 ]);
 
-// completeInfo dialog
+/* -------------- completeInfo dialog --------------
+ * Ask if the user want to add moer information
+ *     If 'yes', return 'Y'
+ *     Else return 'N'
+ * ------------------------------------------------- */
 bot.dialog('/completeInfo', [
     function (session, args) {
         builder.Prompts.text(session, "Do you want to add more information like ID or courses , " + args + ' ?');
     },
     function (session, results) {
         var flag;
-        // session.send("Debug results :" + results.response);
-        if (results.response == 'yes') {
+        if (results.response == 'yes') {        // judge if user want to add more information
             flag = 'Y';
         } else {
             flag = 'N';
@@ -91,15 +100,23 @@ bot.dialog('/completeInfo', [
     }
 ]);
 
+/* -------------- completeID dialog --------------
+ * Ask for the user's ID and save it
+ * The .JSON file will be changed
+ * No return
+ * ----------------------------------------------- */
 bot.dialog('./completeID',[
     function (session, args) {
         session.dialogData.userName = args;
-        builder.Prompts.text(session, "Tell me your ID please .");
+        builder.Prompts.text(session, "Tell me your ID please .");  // Prompt the question
     },
     function (session, results) {
+        // use eval() to add a new property for 'UserInfo'
         eval("UserInfo." + session.dialogData.userName + ".ID=\"" + results.response + "\"");
-        var str = JSON.stringify(UserInfo);
+
+        var str = JSON.stringify(UserInfo);     // resave the UserInfo.JSON file
         fs.writeFileSync('./UserInfo.json', str);
+
         session.send("OK, I finished it .");
         session.endDialog();
     }

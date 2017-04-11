@@ -18,11 +18,13 @@
         说：  yuange 或者 lubin 或者 其他未在 JSON 文件中存在的名字
 
     @ 2017-04-09 更新：
-        新增询问用户是否要修改 ID 的功能
-        新增自动匹配用户输入的 login 字符串从而进入"登录对话"的功能
+        新增 询问用户是否要修改 ID 的功能
+        新增 自动匹配用户输入的 login 字符串从而进入"登录对话"的功能
     @ 2017-04-11 更新：
         新增 LUIS 的自动匹配功能
         新增 course 的匹配功能
+        新增 根据 session.userData.userName 找到 course.json 中用户序号的功能
+        计划 添加 如果用户不存在与 course.json中，给其在 user[] 中新增一项
 ------------------------------------------------------------------------------*/
 
 // create builder, connector and bot
@@ -122,11 +124,11 @@ bot.dialog('/userLogin', [
  * ------------------------------------------------- */
 bot.dialog('/completeInfo', [
     function (session, args) {
-        builder.Prompts.text(session, "Do you want to add more information like ID or courses , " + args + ' ?');
+        builder.Prompts.confirm(session, "Do you want to add more information like ID or courses , " + args + ' ?');
     },
     function (session, results) {
         var flag;
-        if (results.response == 'yes') {        // judge if user want to add more information
+        if (results.response) {         // judge if user want to add more information
             flag = 'Y';
         } else {
             flag = 'N';
@@ -162,7 +164,7 @@ bot.dialog('./completeID',[
  * ----------------------------------------------- */
 bot.dialog('/course', [
     function (session) {
-       builder.Prompts.choice(session, 'What kind of service about class do you want ?', "Look today\'s class|Look tomorrow\'s class|Edit my class|Quit"); 
+        builder.Prompts.choice(session, 'What kind of service about class do you want ?', "Look today\'s class|Look tomorrow\'s class|Edit my class|Quit"); 
     },
     function (session, results) {
         switch (results.response.index) {
@@ -193,7 +195,21 @@ bot.dialog('/courseList', [
         day = (day + args)%7;
         
         // read the .JSON file
-        var str = JSON.stringify(course.course[day].Class);
+        var currentUser = session.userData.userName;
+        
+        // get the index of user in 'course.json'
+        var i = 0;
+        for (i = 0;i < course.user.length; i++) {
+            if (course.user[i].name == currentUser) {
+                break;
+            }
+            if (i == course.user.length - 1) {
+                break;
+            }
+        }
+        session.userData.userIndex = i;     // save the index of user
+
+        var str = JSON.stringify(course.user[i].class[day]);
         session.send("Get it! Here they are :\n" + str);
 
         // confirm if user wants to continue do something about course
@@ -224,9 +240,23 @@ bot .dialog ('/courseEdit', [
         builder.Prompts.text(session, "Please tell me your new class at this day below.");
     },
     function (session, results) {
+        var currentUser = session.userData.userName;
+        
+        // find the current user's index in 'course.json'
+        var i = 0;
+        for (i = 0;i < course.user.length; i++) {
+            if (course.user[i].name == currentUser) {
+                break;
+            }
+            if (i == course.user.length - 1) {
+                break;
+            }
+        }
+        session.userData.userIndex = i;     // save the index of user
+
         // start to edit class of 'day'
         console.log(results.response);
-        eval("course.course[" + session.dialogData.day + "].Class=\"" + results.response + "\"");
+        eval("course.user[" + session.userData.userIndex + "].class[" + session.dialogData.day + "]=\"" + results.response + "\"");
         var str = JSON.stringify(course);
         fs.writeFileSync('./course.json', str);
 

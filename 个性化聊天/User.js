@@ -20,6 +20,9 @@
     @ 2017-04-09 更新：
         新增询问用户是否要修改 ID 的功能
         新增自动匹配用户输入的 login 字符串从而进入"登录对话"的功能
+    @ 2017-04-11 更新：
+        新增 LUIS 的自动匹配功能
+        新增 course 的匹配功能
 ------------------------------------------------------------------------------*/
 
 // create builder, connector and bot
@@ -27,12 +30,15 @@ var builder = require('botbuilder');
 var connector = new builder.ConsoleConnector().listen();
 var bot = new builder.UniversalBot(connector);
 
-// create intents
-var intents = new builder.IntentDialog();
+// create intents and model
+var model = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/b24d941d-f8d9-43fe-8eac-a79c7a71ad36?subscription-key=480f19ea534643c7a0d6adda4ca17539&timezoneOffset=8.0&verbose=true&spellCheck=true&q=";
+var recongizer = new builder.LuisRecognizer(model);
+var intents = new builder.IntentDialog({recognizers: [recongizer]});
 
 // write and read the .json file
 var UserInfo = require('./UserInfo.json');
 var fs = require("fs");
+var course = require('./course.json');
 
 /* ----------------------- main dialog -----------------------
  * Use intents to confirm what kind of service the user wants.
@@ -43,7 +49,8 @@ bot.dialog('/', intents);
  * Case /^login/i   : begin '/login' dialog
  * Default          : say 'Hello!'
  * ----------------------------------------------------------- */ 
-intents.matches(/^login/i, builder.DialogAction.beginDialog('/login'))
+intents.matches('login', builder.DialogAction.beginDialog('/login'))
+    .matches('course', builder.DialogAction.beginDialog('/course'))
     .onDefault(builder.DialogAction.send("Hello!"));
 
 /* ----------------------- login dialog -----------------------
@@ -145,7 +152,94 @@ bot.dialog('./completeID',[
         var str = JSON.stringify(UserInfo);     // resave the UserInfo.JSON file
         fs.writeFileSync('./UserInfo.json', str);
 
-        session.send("OK, I finished it .");
+        session.send("OK, I finished it.");
         session.endDialog();
+    }
+]);
+
+/* -------------- course dialog --------------
+ * Show the curent user's courses
+ * ----------------------------------------------- */
+bot.dialog('/course', [
+    function (session) {
+       builder.Prompts.choice(session, 'What kind of service about class do you want ?', "Look today\'s class|Look tomorrow\'s class|Edit my class|Quit"); 
+    },
+    function (session, results) {
+        switch (results.response.index) {
+            case 0 :
+                session.beginDialog('/courseList', 0);
+                break;
+            case 1 :
+                session.beginDialog('/courseList', 1);
+                break;
+            case 2 :
+                session.beginDialog('/courseEdit');
+                break;
+            case 3 :
+                session.send('OK, quit now');
+                session.endDialog();
+                break;
+        }
+    }
+]);
+
+/* -------------- courseList dialog ----------------
+ * Show the curent user's courses today or tomorrow
+ * ------------------------------------------------- */
+bot.dialog('/courseList', [
+    function (session, args) {
+        // get the day which user wants to know
+        var day  = new Date().getDay();
+        day = (day + args)%7;
+        
+        // read the .JSON file
+        var str = JSON.stringify(course.course[day].Class);
+        session.send("Get it! Here they are :\n" + str);
+
+        // confirm if user wants to continue do something about course
+        builder.Prompts.confirm(session, "Would do you like to know or edit more about your class?");
+    },
+    function (session, results) {
+        if (results.response) {
+            session.replaceDialog('/course');
+        } else {
+            session.endDialog("OK, quit now.");
+        }
+    }
+]);
+
+
+/* -------------- courseEdit dialog --------------
+ * Edit the curent user's courses
+ * ----------------------------------------------- */
+bot .dialog ('/courseEdit', [
+    function (session) {
+        session.send("Now you can edit your class for a week.");
+        builder.Prompts.choice(session, "Which day would you like to edit?", 'Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Quit Edit');
+    },
+    function (session, results) {
+        // get the day which user wants to edit
+        session.dialogData.day = results.response.index;
+
+        builder.Prompts.text(session, "Please tell me your new class at this day below.");
+    },
+    function (session, results) {
+        // start to edit class of 'day'
+        console.log(results.response);
+        eval("course.course[" + session.dialogData.day + "].Class=\"" + results.response + "\"");
+        var str = JSON.stringify(course);
+        fs.writeFileSync('./course.json', str);
+
+        session.send("OK, I finished it.");
+
+        // confirm if user wants to continue do something about course
+        builder.Prompts.confirm(session, "Would do you like to know or edit more about your class?");
+    },
+    function (session, results) {
+        if (results.response) {
+            session.replaceDialog('/course');
+        } else {
+            session.endDialog("OK, quit now.");
+        }
     }
 ]);

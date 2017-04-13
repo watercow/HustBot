@@ -1,61 +1,30 @@
-/*-----------------------------------------------------------------------------
-    这个机器人可以用来记录用户的名字，并把用户的信息保存在同一目录下的 UserInfo.json
-文件中。
-
-    主对话包括两个瀑布流，第一个询问用户的名字，第二个调用 /userLoging 对话。
-    /userLogin 对话也包括两个瀑布流，第一个用来确认 JSON 文件中是否包含这名用户，如果
-包含这个用户，则向用户问好并且返回；如果不包含这个用户，则根据用户先前的回答更新 JSON 
-文件。
-
-    更新 JSON 文件的步骤：
-        #1  将 JSON 文件转化为 JavaScript 对象
-        #2  给 JavaScript 对象添加、修改、删除属性
-        #3  将修改后的 JavaScript 对象转化为一个字符串
-        #4  使用 fs 文件操作，把字符串写入 JSON 文件
-
-    使用方式：
-        说：  hello
-        说：  yuange 或者 lubin 或者 其他未在 JSON 文件中存在的名字
-
-    @ 2017-04-09 更新：
-        新增 询问用户是否要修改 ID 的功能
-        新增 自动匹配用户输入的 login 字符串从而进入"登录对话"的功能
-    @ 2017-04-11 更新：
-        新增 LUIS 的自动匹配功能
-        新增 course 的匹配功能
-        新增 根据 session.userData.userName 找到 course.json 中用户序号的功能
-        计划 添加 如果用户不存在于 course.json中，就给其在 user[] 中新增一项
-    @ 2017-04-12 更新：
-        新增 如果用户不存在于 course.json中，就给其在 user[] 中新增一项 的功能
-    @ 2017-04-13 更新：
-        新增 用随机的回答安慰用户
-------------------------------------------------------------------------------*/
-
-// create builder, connector and bot
 var builder = require('botbuilder');
-var connector = new builder.ChatConnector({
+var restify = require('restify');
+
+module.exports = {
+    start: function () {
+        var server = restify.createServer();
+        server.listen(process.env.port || process.env.PORT || 3978, function (){
+            console.log("listening");
+        });
+
+        var connector = new builder.ChatConnector({
             appId: "860c91b4-cdab-4861-80b0-e95ac005030e",
             appPassword:   "4xkrXKpTrguazTSwHsPyfkB"
         });
-var bot = new builder.UniversalBot(connector);
 
-// create server
-var restify = require('restify');
-var server = restify.createServer();
-server.listen(process.env.port || process.env.PORT || 3978, function () {
-    console.log('%s listening to %s', server.name, server.url);
-});
-server.post('/api/messages', connector.listen());
+        var bot = new builder.UniversalBot(connector);
+        server.post('/api/messages', connector.listen());
 
-// create intents and model
-var model = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/b24d941d-f8d9-43fe-8eac-a79c7a71ad36?subscription-key=480f19ea534643c7a0d6adda4ca17539&timezoneOffset=8.0&verbose=true&spellCheck=true&q=";
-var recongizer = new builder.LuisRecognizer(model);
-var intents = new builder.IntentDialog({recognizers: [recongizer]});
+        // create intents and model
+        var model = "https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/b24d941d-f8d9-43fe-8eac-a79c7a71ad36?subscription-key=480f19ea534643c7a0d6adda4ca17539&timezoneOffset=8.0&verbose=true&spellCheck=true&q=";
+        var recongizer = new builder.LuisRecognizer(model);
+        var intents = new builder.IntentDialog({recognizers: [recongizer]});
 
-// write and read the .json file
-var UserInfo = require('./UserInfo.json');
-var fs = require("fs");
-var course = require('./course.json');
+        // write and read the .json file
+        var UserInfo = require('./UserInfo.json');
+        var fs = require("fs");
+        var course = require('./course.json');
 
 /* ----------------------- main dialog -----------------------
  * Use intents to confirm what kind of service the user wants.
@@ -68,8 +37,6 @@ bot.dialog('/', intents);
  * ----------------------------------------------------------- */ 
 intents.matches('login', builder.DialogAction.beginDialog('/login'))
     .matches('course', builder.DialogAction.beginDialog('/course'))
-    .matches('comfort', builder.DialogAction.beginDialog('/comfort'))
-    .matches('joke', builder.DialogAction.beginDialog('/joke'))
     .onDefault(builder.DialogAction.send("Hello!"));
 
 /* ----------------------- login dialog -----------------------
@@ -297,38 +264,5 @@ bot .dialog ('/courseEdit', [
         }
     }
 ]);
-
-/* -------------- comfort dialog --------------
- * to comfort the user by random words
- * ----------------------------------------------- */
-bot.dialog('/comfort', function (session) {
-    var index = Math.floor(Math.random() * 11);
-    var comfortRepeat = [
-        "Oh, I wish I could sweep you tears and kiss on your forehead.",
-        "My dear, I wish if I could give a hug to you.",
-        "It's so terrible, maybe listening a music could let you feel better.",
-        "Just be relax. Although we are separated by the glass, I can fell your broken heart.",
-        "Granted that your dear ones all desappear, I am still here with you.",
-        "Life is a boat, I believe that you will meet the best one someday.",
-        "Someone who always bawls you out might be the one loves you most.",
-        "Forget it my dear. Once the sun goes down, the moon will rises up on time.",
-        "Whatever happens, you shouldn't lose your confidence my lord",
-        "I wish I have blood and heart like you, and then lend you my shoulder."
-    ];
-
-    session.endDialog(comfortRepeat[index]);
-});
-
-
-/* -------------- joke dialog --------------
- * tell user a joke at random
- * ----------------------------------------------- */
-bot.dialog('/joke', function (session) {
-    var index = Math.floor(Math.random() * 2);
-    var jokeRepeat = [
-        "There are 10 kinds of people in the world.\nOne knows binary, but another doesn't know it.",
-        "The wife had an accident and was dying.\nHearing that, the husband hurried to hospital, hold wife's hands tightly and started to twitch.\nThe wife begged husband, \"Can you ... promise me ... one thing ... ?\"\n\"Whatever you say, I will promise.\", said the husband.\nAnd then wife said, \"Could you pelase don\'t laugh so happily ?\" ."
-    ];
-
-    session.endDialog(jokeRepeat[index]);
-});
+    }
+}

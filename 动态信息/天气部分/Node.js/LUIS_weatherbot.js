@@ -82,7 +82,7 @@ bot.dialog('/SearchWeather', [
 ]);
 
 /*-----------Open Server-----------------------
- *---------------------------------------------
+ *   链接bot emulator 的基本操作设置
  *---------------------------------------------*/
 var server = restify.createServer();
 server.listen(process.env.port || process.env.PORT || 3978, function(){

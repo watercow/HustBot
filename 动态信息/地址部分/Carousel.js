@@ -1,6 +1,6 @@
 var builder = require('botbuilder');
 var restify = require('restify');
-var githubClient = require('.github-client.js');
+var githubClient = require('./github-client.js');
 
 var connector = new builder.ChatConnector();
 var bot = new builder.UniversalBot(connector);
@@ -32,8 +32,8 @@ dialog.matches(/^search/i,[
                 }
                 else {
                     session.dialogData.property = null;
-                    var cards = profiles.items.map(function(item) {return createCard(session, item)} );;
-                    var message = new buildler.Message(session).attachments(cards).attachmentLayout('carousel');
+                    var cards = profiles.items.map(function (item) {return createCard(session, item);} );
+                    var message = new builder.Message(session).attachments(cards).attachmentLayout('carousel');
                     session.send(message);
                 }
             });

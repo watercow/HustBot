@@ -84,12 +84,14 @@ bot.dialog('/GiveWayLine',[
     function (session, args, next) {
         session.dialogData.entities = args.entities;
         var fromAddr = builder.EntityRecognizer.findEntity(args.entities, '出发地');
-        if(fromAddr) {
-            //var PinAddr = pinyin.codefans_net_CC2PY(query.entity);
-            next( { response: fromAddr.entity } );
+        var toAddr = builder.EntityRecognizer.findEntity(args.entites, '目的地');
+        var origin = fromAddr.entity;
+        var destination = toAddr.entity;
+        if(fromAddr && toAddr) {
+            next( { origin, destination } );
         }
         else {
-            next( { response: '武汉华中科技大学' } );
+            session.endDialog("请准确输入起始地点和目的地");
         }
     },
     function(session, result, next) {
